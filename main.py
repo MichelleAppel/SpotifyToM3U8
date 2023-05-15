@@ -25,14 +25,35 @@ def get_tracks_from_spotify_playlist(spotify, playlist_id):
     return tracks
 
 def create_m3u8_file(tracks, music_folder, output_file):
-    """Creates an m3u8 playlist file from a list of track names."""
+    """Creates an m3u8 playlist file from a list of track names.
+    
+    Args:
+        tracks (list): A list of track names.
+        music_folder (str): Path to the folder containing the music files.
+        output_file (str): Path to the output m3u8 file.
+        
+    Returns:
+        None
+    """
+    missing_tracks = []
+    
     with open(output_file, 'w') as f:
         f.write("#EXTM3U\n")
         for track in tracks:
+            track_found = False
             for root, dirs, files in os.walk(music_folder):
                 for file in files:
                     if track in file:
                         f.write(os.path.join(root, file) + "\n")
+                        track_found = True
+                        break
+            if not track_found:
+                missing_tracks.append(track)
+    
+    if missing_tracks:
+        print("The following tracks were not found in your music library and have not been added to the playlist:")
+        for track in missing_tracks:
+            print(f"- {track}")
 
 def main():
     parser = argparse.ArgumentParser(description="Convert a Spotify playlist to m3u8 format.")
