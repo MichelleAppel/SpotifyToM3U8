@@ -6,3 +6,5 @@ __pycache__/
 output/
 
 test_main.py
+
+.m3u8
