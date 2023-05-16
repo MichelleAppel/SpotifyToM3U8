@@ -37,26 +37,31 @@ def create_m3u8_file(tracks, music_folder, output_file):
             print(f"- {track}")
 
 def main():
-    parser = argparse.ArgumentParser(description="Convert a Spotify playlist to m3u8 format.")
-    parser.add_argument("playlist_id", help="The Spotify playlist ID.")
+    parser = argparse.ArgumentParser(description="Convert Spotify playlists to m3u8 format.")
+    parser.add_argument("playlist_file", help="Text file containing the Spotify playlist URLs or IDs, one per line.")
     parser.add_argument("music_folder", help="Path to the folder containing the music files.")
-    parser.add_argument("output_dir", help="Directory to save the output m3u8 file.")
+    parser.add_argument("output_dir", help="Directory to save the output m3u8 files.")
     args = parser.parse_args()
 
     spotify = get_spotify_client()
 
-    tracks = get_tracks_from_spotify_playlist(args.playlist_id)
-    if not tracks:
-        return
+    with open(args.playlist_file, 'r') as file:
+        playlist_ids = [line.strip() for line in file]
 
-    playlist_info = spotify.playlist(args.playlist_id)
-    playlist_name = playlist_info['name']
-    output_file = os.path.join(args.output_dir, f"{playlist_name}.m3u8")
+    for playlist_id in playlist_ids:
+        tracks = get_tracks_from_spotify_playlist(playlist_id)
+        if not tracks:
+            continue
 
-    print(args.music_folder)
+        # Fetch the playlist name for the output file
+        playlist_info = spotify.playlist(playlist_id)
+        playlist_name = playlist_info['name']
+        output_file = os.path.join(args.output_dir, f"{playlist_name}.m3u8")
 
-    create_m3u8_file(tracks, args.music_folder, output_file)
-    print(f"Playlist has been saved to {output_file}")
+        print(f"Processing playlist: {playlist_name}")
+
+        create_m3u8_file(tracks, args.music_folder, output_file)
+        print(f"Playlist has been saved to {output_file}")
 
 if __name__ == "__main__":
     main()
