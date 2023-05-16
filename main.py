@@ -1,34 +1,14 @@
 import os
 import argparse
-import spotipy
-from spotipy.oauth2 import SpotifyClientCredentials
-from dotenv import load_dotenv
-
-load_dotenv()
-
-def get_spotify_client():
-    """Initialize the Spotify client."""
-    client_id = os.getenv('SPOTIFY_CLIENT_ID')
-    client_secret = os.getenv('SPOTIFY_CLIENT_SECRET')
-    client_credentials_manager = SpotifyClientCredentials(client_id=client_id, client_secret=client_secret)
-    return spotipy.Spotify(client_credentials_manager=client_credentials_manager)
-
-def get_tracks_from_spotify_playlist(spotify, playlist_id):
-    """Fetches all tracks from a Spotify playlist."""
-    try:
-        results = spotify.playlist_items(playlist_id)
-    except Exception as e:
-        print(f"Failed to fetch tracks from playlist: {e}")
-        return []
-
-    tracks = [f"{item['track']['artists'][0]['name']} - {item['track']['name']}" for item in results['items']]
-    return tracks
+from spotify.client import get_spotify_client
+from spotify.playlist import get_tracks_from_spotify_playlist
+from utils.text_processing import normalize_text
 
 def create_m3u8_file(tracks, music_folder, output_file):
     """Creates an m3u8 playlist file from a list of track names.
     
     Args:
-        tracks (list): A list of track names.
+        tracks (list): A list of track dictionaries.
         music_folder (str): Path to the folder containing the music files.
         output_file (str): Path to the output m3u8 file.
         
@@ -37,18 +17,19 @@ def create_m3u8_file(tracks, music_folder, output_file):
     """
     missing_tracks = []
     
-    with open(output_file, 'w') as f:
+    with open(output_file, 'w', encoding='utf-8') as f:
         f.write("#EXTM3U\n")
         for track in tracks:
             track_found = False
             for root, dirs, files in os.walk(music_folder):
                 for file in files:
-                    if track in file:
+                    normalized_file = normalize_text(file)
+                    if track['normalized_artist'] in normalized_file and track['normalized_title'] in normalized_file:
                         f.write(os.path.join(root, file) + "\n")
                         track_found = True
                         break
             if not track_found:
-                missing_tracks.append(track)
+                missing_tracks.append(track['artist_title'])
     
     if missing_tracks:
         print("The following tracks were not found in your music library and have not been added to the playlist:")
@@ -64,11 +45,10 @@ def main():
 
     spotify = get_spotify_client()
 
-    tracks = get_tracks_from_spotify_playlist(spotify, args.playlist_id)
+    tracks = get_tracks_from_spotify_playlist(args.playlist_id)
     if not tracks:
         return
 
-    # Fetch the playlist name for the output file
     playlist_info = spotify.playlist(args.playlist_id)
     playlist_name = playlist_info['name']
     output_file = os.path.join(args.output_dir, f"{playlist_name}.m3u8")
